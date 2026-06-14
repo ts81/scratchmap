@@ -1,0 +1,121 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<base target="_top">
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<title>Scratch Map</title>
+
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+	<script src="geo/countries.js"></script>
+	<script src="data/visited.js"></script>
+
+	<style>
+		html, body {
+			height: 100%;
+			width: 100%;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+		}
+		#map {
+			width: 100%;
+			height: 100%;
+		}
+		.leaflet-container {
+			width: 100%;
+			height: 100%;
+		}
+	</style>
+</head>
+<body>
+
+<div id="map"></div>
+<script>
+	// Farbpalette – hier anpassen
+	const COLORS = {
+		visited: '#bbf7d0',        // Helles Grün (besucht)
+		visitedHover: '#dcfce7',   // Noch heller (Hover)
+		visitedOutline: '#86efac', // Feine Umrandung (besucht)
+		visitedOutlineHover: '#4ade80',
+		unvisited: '#94a3b8',
+		unvisitedHover: '#cbd5e1',
+		opacityVisited: 0.85,
+		opacityUnvisited: 0,
+		opacityVisitedHover: 0.95,
+		opacityUnvisitedHover: 0,
+	};
+
+	const visitedCountries = new Set(VISITED_COUNTRIES);
+
+	const map = L.map('map', { worldCopyJump: true });
+
+	L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		maxZoom: 19,
+		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+	}).addTo(map);
+
+	function isVisited(feature) {
+		return visitedCountries.has(feature.id);
+	}
+
+	function style(feature) {
+		const visited = isVisited(feature);
+		return {
+			fillColor: visited ? COLORS.visited : COLORS.unvisited,
+			fillOpacity: visited ? COLORS.opacityVisited : COLORS.opacityUnvisited,
+			stroke: visited,
+			color: COLORS.visitedOutline,
+			weight: 0.5,
+			opacity: 0.9,
+		};
+	}
+
+	function highlightFeature(e) {
+		const layer = e.target;
+		const visited = isVisited(layer.feature);
+
+		layer.setStyle({
+			stroke: visited,
+			color: visited ? COLORS.visitedOutlineHover : undefined,
+			weight: visited ? 0.75 : 0,
+			opacity: visited ? 1 : 0,
+			fillColor: visited ? COLORS.visitedHover : COLORS.unvisitedHover,
+			fillOpacity: visited ? COLORS.opacityVisitedHover : COLORS.opacityUnvisitedHover,
+		});
+	}
+
+	function resetHighlight(e) {
+		countriesLayer.resetStyle(e.target);
+	}
+
+	function zoomToFeature(e) {
+		map.fitBounds(e.target.getBounds());
+	}
+
+	function onEachFeature(feature, layer) {
+		const name = feature.properties.name;
+		const status = isVisited(feature) ? 'Besucht' : 'Noch nicht besucht';
+
+		layer.bindPopup('<strong>' + name + '</strong><br>' + status);
+
+		layer.on({
+			mouseover: highlightFeature,
+			mouseout: resetHighlight,
+			click: zoomToFeature,
+		});
+	}
+
+	const countriesLayer = L.geoJSON(COUNTRIES_GEOJSON, {
+		style: style,
+		onEachFeature: onEachFeature,
+	}).addTo(map);
+
+	map.fitWorld();
+</script>
+
+</body>
+</html>
